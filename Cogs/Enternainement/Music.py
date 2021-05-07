@@ -70,8 +70,9 @@ class MUSIK(commands.Cog):
                     break
         except:
             try:
-                await ctx.voice_client.disconnect()
                 await player.disable()
+                await ctx.voice_client.disconnect()
+                return
             except:
                 return
 
@@ -96,7 +97,7 @@ class MUSIK(commands.Cog):
         if ctx.voice_client.is_paused():
             player = self.music.get_player(guild_id=ctx.guild.id)
             await player.resume()
-            await ctx.message.delete()
+            return await ctx.message.delete()
         else:
 
             embed = discord.Embed(
@@ -115,7 +116,7 @@ class MUSIK(commands.Cog):
         if ctx.voice_client.is_playing():
             player = self.music.get_player(guild_id=ctx.guild.id)
             await player.pause()
-            await ctx.message.delete()
+            return await ctx.message.delete()
         else:
 
             embed = discord.Embed(
@@ -125,7 +126,7 @@ class MUSIK(commands.Cog):
             )
             embed.set_thumbnail(url=self.client.user.avatar_url)
 
-            await Framework.Messaging.Universal_send(ctx, embed, 15)
+            return await Framework.Messaging.Universal_send(ctx, embed, 15)
 
 
 
@@ -135,7 +136,12 @@ class MUSIK(commands.Cog):
         if player:
             await player.disable()
             await ctx.voice_client.disconnect()
-        await ctx.message.delete()
+            return
+        try:
+            await ctx.message.delete()
+            return
+        except:
+            return
 
 
     @commands.command()
@@ -160,6 +166,7 @@ class MUSIK(commands.Cog):
             return
         try:
             await ctx.message.delete()
+            return
         except:
             return
 
@@ -181,6 +188,7 @@ class MUSIK(commands.Cog):
             return await Framework.Messaging.Universal_send(ctx, embed, 15)
         try:
             await ctx.message.delete()
+            return
         except:
             return
 
@@ -229,6 +237,7 @@ class MUSIK(commands.Cog):
             return
         try:
             await ctx.message.delete()
+            return
         except:
             return
 
@@ -241,10 +250,13 @@ class MUSIK(commands.Cog):
             song = await player.toggle_song_loop()
             if song.is_looping:
                 await Framework.Messaging.Universal_send(ctx, f"Loop for Track: **{song.name}** active.")
+                return
             else:
                 await Framework.Messaging.Universal_send(ctx, f"Loop for Track: **{song.name}** inactive.")
+                return
         try:
             await ctx.message.delete()
+            return
         except:
             return
 
@@ -256,7 +268,7 @@ class MUSIK(commands.Cog):
                 try:
                     await ctx.author.voice.channel.connect()
                 except:
-                    return
+                    pass
         else:
             pass
 
