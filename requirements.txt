@@ -1,5 +1,6 @@
 # System
 aiohttp
+youtube_dl
 dnspython
 PyNaCl
 async-timeout

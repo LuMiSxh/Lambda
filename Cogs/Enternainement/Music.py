@@ -1,9 +1,58 @@
 # Import
-import DiscordUtils
 import discord
 from discord.ext import commands
+import asyncio
+import youtube_dl
 import Framework
 
+
+# Optionen bestimmung
+
+
+ytdl_format_options = {
+    'format': 'bestaudio/best',
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
+    'noplaylist': True,
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no_warnings': True,
+    'default_search': 'auto',
+    'source_address': '0.0.0.0'
+}
+
+ffmpeg_options = {
+    'options': '-vn'
+}
+
+ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+
+
+# YTDLSource Class
+
+
+class YTDLSource(discord.PCMVolumeTransformer):
+    def __init__(self, source, *, data, volume=0.5):
+        super().__init__(source, volume)
+
+        self.data = data
+        self.title = data.get('title')
+        self.url = data.get('url')
+        self.thumbnail = data.get('thumbnail')
+
+
+    @classmethod
+    async def from_url(cls, url, *, loop=None, stream=False):
+        loop = loop or asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+
+        if 'entries' in data:
+            data = data['entries'][0]
+
+        filename = data['url'] if stream else ytdl.prepare_filename(data)
+        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 # Cog Initialising
 
@@ -12,265 +61,166 @@ class MUSIK(commands.Cog):
 
     def __init__(self, client):
         self.client = client
-        self.music = DiscordUtils.Music()
+        self.queue = {}
+
+
+    @commands.command()
+    async def join(self, ctx, *, channel: discord.VoiceChannel):
+
+        if ctx.voice_client is not None:
+            self.queue = {}
+            return await ctx.voice_client.move_to(channel)
+        self.queue = {}
+        await channel.connect()
 
 
     @commands.command()
     async def play(self, ctx, *, url):
-        player = self.music.get_player(guild_id=ctx.guild.id)
-        if not player:
-            player = self.music.create_player(ctx, ffmpeg_error_betterfix=True)
+        async with ctx.typing():
+            player = await YTDLSource.from_url(url, loop=self.client.loop, stream=True)
 
-        if not ctx.voice_client.is_playing() or not ctx.voice_client.is_paused:
+        if len(self.queue) == 0:
 
-            await player.queue(url, search=True)
-
-            song = await player.play()
-
+            self.start_playing(ctx.voice_client, player)
             embed = discord.Embed(
                 title='',
                 colour=Framework.Colour.Musik,
-                description=f'[{Framework.safe_format(song.name)}]({song.url})'
+                description=f'[{format(player.title)}]({player.url})'
             )
-            embed.set_author(name='Now Playing:')
-            embed.set_image(url=song.thumbnail)
+            embed.set_author(name='Now playing:')
+            embed.set_image(url=player.thumbnail)
             embed.set_footer(text=f'Added by: {ctx.author.name}', icon_url=ctx.author.avatar_url)
-            embed.set_thumbnail(url=self.client.user.avatar_url)
+            embed.set_thumbnail(url=Framework.YAML.GET("Pictures", "Accept"))
 
-            await Framework.Messaging.Universal_send(ctx, embed, 15)
+            await Framework.Messaging.Universal_send(ctx, embed, 35)
 
         else:
 
-            song = await player.queue(url, search=True)
+            self.queue[len(self.queue)] = player
             embed = discord.Embed(
                 title='',
                 colour=Framework.Colour.Musik,
-                description=f'[{Framework.safe_format(song.name)}]({song.url})'
+                description=f'[{format(player.title)}]({player.url})'
             )
-            embed.set_author(name='Added to Queue:')
-            embed.set_image(url=song.thumbnail)
+            embed.set_author(name='Added to queue:')
+            embed.set_image(url=player.thumbnail)
             embed.set_footer(text=f'Added by: {ctx.author.name}', icon_url=ctx.author.avatar_url)
-            embed.set_thumbnail(url=self.client.user.avatar_url)
+            embed.set_thumbnail(url=Framework.YAML.GET("Pictures", "Accept"))
 
-            await Framework.Messaging.Universal_send(ctx, embed, 15)
+            await Framework.Messaging.Universal_send(ctx, embed, 35)
 
         try:
             while ctx.voice_client.is_connected():
                 if len(ctx.voice_client.channel.members) == 1:
-                    await player.disable()
                     await ctx.voice_client.disconnect()
                     break
                 elif ctx.voice_client.is_paused():
-                    pass
+                    await asyncio.sleep(1)
                 elif ctx.voice_client.is_playing():
-                    pass
+                    await asyncio.sleep(1)
                 else:
-                    await player.disable()
                     await ctx.voice_client.disconnect()
                     break
         except:
+            return
+
+
+    def start_playing(self, voice_client, player):
+
+        self.queue[0] = player
+
+        i = 0
+        while i < len(self.queue):
             try:
-                await player.disable()
-                await ctx.voice_client.disconnect()
-                return
+                voice_client.play(self.queue[i], after=lambda e: print('Player error: %s' % e) if e else None)
+
             except:
-                return
-
-
-
-    @commands.command()
-    async def stop(self, ctx):
-        player = self.music.get_player(guild_id=ctx.guild.id)
-        if player:
-            await player.stop()
-            await ctx.message.delete()
-            return
-        try:
-            await ctx.message.delete()
-        except:
-            return
-
-
-
-    @commands.command()
-    async def resume(self, ctx):
-        if ctx.voice_client.is_paused():
-            player = self.music.get_player(guild_id=ctx.guild.id)
-            await player.resume()
-            return await ctx.message.delete()
-        else:
-
-            embed = discord.Embed(
-                title=f'{Framework.YAML.GET("Embed", "Help")}',
-                colour=Framework.Colour.Musik,
-                description='Music not paused!'
-            )
-            embed.set_thumbnail(url=self.client.user.avatar_url)
-
-            await Framework.Messaging.Universal_send(ctx, embed)
-            return
-
-
-    @commands.command()
-    async def pause(self, ctx):
-        if ctx.voice_client.is_playing():
-            player = self.music.get_player(guild_id=ctx.guild.id)
-            await player.pause()
-            return await ctx.message.delete()
-        else:
-
-            embed = discord.Embed(
-                title=f'{Framework.YAML.GET("Embed", "Help")}',
-                colour=Framework.Colour.Musik,
-                description='Music already paused!'
-            )
-            embed.set_thumbnail(url=self.client.user.avatar_url)
-
-            return await Framework.Messaging.Universal_send(ctx, embed, 15)
-
-
-
-    @commands.command()
-    async def leave(self, ctx):
-        player = self.music.get_player(guild_id=ctx.guild.id)
-        if player:
-            await player.disable()
-            await ctx.voice_client.disconnect()
-            return
-        try:
-            await ctx.message.delete()
-            return
-        except:
-            return
-
-
-    @commands.command()
-    async def skip(self, ctx):
-        player = self.music.get_player(guild_id=ctx.guild.id)
-
-        if player:
-
-            data = await player.skip(force=True)
-
-            embed = discord.Embed(
-                title='',
-                colour=Framework.Colour.Musik,
-                description=f'[{Framework.safe_format(data[1].name)}]({data[1].url})'
-            )
-            embed.set_author(name='Skipped:')
-            embed.set_image(url=data[1].thumbnail)
-            embed.set_footer(text=f'Skipped by: {ctx.author.name}', icon_url=ctx.author.avatar_url)
-            embed.set_thumbnail(url=self.client.user.avatar_url)
-
-            await Framework.Messaging.Universal_send(ctx, embed, 15)
-            return
-        try:
-            await ctx.message.delete()
-            return
-        except:
-            return
+                pass
+            i += 1
 
 
     @commands.command(aliases=["v"])
-    async def volume(self, ctx, vol: float):
-        player = self.music.get_player(guild_id=ctx.guild.id)
-        if player:
-            song, volume = await player.change_volume(float(vol) / 10)
+    async def volume(self, ctx, volume: float):
+
+        if ctx.voice_client is None:
+
+            embed = discord.Embed(
+                title=f'{Framework.YAML.GET("Embed", "Help")}',
+                colour=Framework.Colour.Error,
+                description='Im not connected to a voice channel!'
+            )
+            embed.set_thumbnail(url=Framework.YAML.GET("Pictures", "Animated", "Error"))
+
+            return await Framework.Messaging.Universal_send(ctx, embed, 15)
+
+        elif ctx.voice_client is not None:
+
+            ctx.voice_client.source.volume = volume / 100
 
             embed = discord.Embed(
                 title='Volume',
                 colour=Framework.Colour.Musik,
-                description=f'Volume for **{Framework.safe_format(song.name)}** set to **{(volume * 10)}**%.'
+                description=f'Set volume to: `{volume}`%'
             )
             embed.set_footer(text=f"Adjusted by: {ctx.author.name}", icon_url=ctx.author.avatar_url)
-            embed.set_thumbnail(url=self.client.user.avatar_url)
+            embed.set_thumbnail(url=Framework.YAML.GET("Pictures", "Accept"))
 
             return await Framework.Messaging.Universal_send(ctx, embed, 15)
-        try:
-            await ctx.message.delete()
-            return
-        except:
-            return
 
 
     @commands.command()
-    async def queue(self, ctx):
-        x = 1
-        player = self.music.get_player(guild_id=ctx.guild.id)
+    async def stop(self, ctx):
 
-        if player:
-
-            embed = discord.Embed(
-                title='',
-                colour=Framework.Colour.Musik
-            )
-            embed.set_author(name='Queue:')
-            embed.set_thumbnail(url=self.client.user.avatar_url)
-
-            for song in player.current_queue():
-                embed.add_field(name=f"-<{x}>-", value=f"{song.name}")
-                x += 1
-
-            await Framework.Messaging.Universal_send(ctx, embed, 15)
-            return
         try:
+            await ctx.voice_client.disconnect()
             await ctx.message.delete()
         except:
-            return
+            try:
+                await ctx.message.delete()
+            except:
+                pass
 
 
     @commands.command()
-    async def remove(self, ctx, index: int):
-        player = self.music.get_player(guild_id=ctx.guild.id)
-        if player:
-            song = await player.remove_from_queue(int(index))
+    async def pause(self, ctx):
 
-            embed = discord.Embed(
-                title='',
-                colour=Framework.Colour.Musik,
-                description=f"**{song.name}** removed from Queue"
-            )
-            embed.set_author(name='Queue:')
-            embed.set_thumbnail(url=self.client.user.avatar_url)
+        if ctx.voice_client.is_playing():
 
-            await Framework.Messaging.Universal_send(ctx, embed, 15)
+            ctx.voice_client.pause()
+            await ctx.message.delete()
             return
         try:
             await ctx.message.delete()
-            return
         except:
-            return
+            pass
 
 
     @commands.command()
-    async def loop(self, ctx):
-        player = self.music.get_player(guild_id=ctx.guild.id)
+    async def resume(self, ctx):
 
-        if player:
-            song = await player.toggle_song_loop()
-            if song.is_looping:
-                await Framework.Messaging.Universal_send(ctx, f"Loop for Track: **{song.name}** active.")
-                return
-            else:
-                await Framework.Messaging.Universal_send(ctx, f"Loop for Track: **{song.name}** inactive.")
-                return
-        try:
+        if ctx.voice_client.is_paused():
+
+            ctx.voice_client.resume()
             await ctx.message.delete()
             return
+
+        try:
+            await ctx.message.delete()
         except:
-            return
+            pass
 
 
     @play.before_invoke
     async def ensure_voice(self, ctx):
         if ctx.voice_client is None:
+            self.queue = {}
             if ctx.author.voice:
                 try:
                     await ctx.author.voice.channel.connect()
                 except:
                     pass
-        else:
-            pass
+            else:
+                return
 
 
 # Cog Finishing

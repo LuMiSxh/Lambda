@@ -38,7 +38,7 @@ class Error(commands.Cog):
 
             await Framework.Messaging.Universal_send(ctx, embed, 15)
 
-        elif isinstance(error, commands.BotMissingAnyRole or commands.BotMissingPermissions):
+        elif isinstance(error, commands.BotMissingAnyRole or commands.BotMissingPermissions or commands.MissingPermissions or commands.MissingAnyRole):
             # Error Code Baboon
             embed = discord.Embed(
                 title=f"{Framework.YAML.GET('Embed', 'Help')}",
