@@ -1,0 +1,10 @@
+# System
+aiohttp
+dnspython
+PyNaCl
+async-timeout
+pyyaml
+# Discord
+discord
+discord.py
+discordUtils
