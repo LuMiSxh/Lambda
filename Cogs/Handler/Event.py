@@ -49,7 +49,7 @@ class EVENT(commands.Cog):
             except:
                 pass
 
-        elif f'<@!{self.client.user.id}>' or f'<@{self.client.user.id}>' in message.content:
+        elif message.content in [f'<@!{self.client.user.id}>', f'<@{self.client.user.id}>']:
             m = await message.channel.send(
                 f'Hello! Since you pinged me, I assume that you forgot my Prefix, which is: `{self.client.command_prefix}`')
             await asyncio.sleep(60)

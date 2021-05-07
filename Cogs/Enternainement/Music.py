@@ -168,12 +168,12 @@ class MUSIK(commands.Cog):
     async def volume(self, ctx, vol: float):
         player = self.music.get_player(guild_id=ctx.guild.id)
         if player:
-            song, volume = await player.change_volume(float(vol))
+            song, volume = await player.change_volume(float(vol) / 10)
 
             embed = discord.Embed(
                 title='Volume',
                 colour=Framework.Colour.Musik,
-                description=f'Volume for **{Framework.safe_format(song.name)}** set to **{volume}**%.'
+                description=f'Volume for **{Framework.safe_format(song.name)}** set to **{(volume * 10)}**%.'
             )
             embed.set_footer(text=f"Adjusted by: {ctx.author.name}", icon_url=ctx.author.avatar_url)
             embed.set_thumbnail(url=self.client.user.avatar_url)
