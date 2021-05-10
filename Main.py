@@ -79,7 +79,8 @@ def Initialize(attr=0):
                             print(f"Unloaded Cog: |{filename}|")
 
                 except Exception as e:
-                    print(f"ERROR Loading/Unloading Cog: |{filename}| ; Error: |{e.__context__}|")
+                    if not filename.startswith("control"):
+                        print(f"ERROR Loading/Unloading Cog: |{filename}| ; Error: |{e.__context__}|")
                     continue
         else:
             for filename2 in os.listdir(f"Cogs/{filename}"):
@@ -93,7 +94,8 @@ def Initialize(attr=0):
                                 client.unload_extension(f'Cogs.{filename}.{filename2[:-3]}')
                                 print(f"Unloaded Cog: |{filename}.{filename2}|")
                     except Exception as e:
-                        print(f"ERROR Loading/Unloading Cog: |{filename}.{filename2}| ; Error: |{e.__context__}|")
+                        if not filename2.startswith("control"):
+                            print(f"ERROR Loading/Unloading Cog: |{filename}.{filename2}| ; Error: |{e.__context__}|")
                         continue
 
 

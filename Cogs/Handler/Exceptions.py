@@ -27,6 +27,8 @@ class Error(commands.Cog):
         except:
             typ = type(error)
 
+        print(typ)
+
         if typ in self.ignored:
             return
 
