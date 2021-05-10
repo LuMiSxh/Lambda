@@ -17,16 +17,34 @@ class Error(commands.Cog):
         self.client = client
         self.ignored = [commands.CommandNotFound, commands.DisabledCommand]
         self.Normal = [AttributeError, ArithmeticError, OSError, FileNotFoundError, IndentationError, IndexError,
-                       ImportError, SyntaxError, TypeError]
+                       ImportError, SyntaxError, TypeError, Framework.YAMLError]
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
-        for e in self.ignored:
-            if isinstance(error, e):
-                return
 
-        if isinstance(error,
-                      commands.BadArgument or commands.BadBoolArgument or commands.TooManyArguments or commands.MissingRequiredArgument):
+        try:
+            typ = type(error.original)
+        except:
+            typ = type(error)
+
+        if typ in self.ignored:
+            return
+
+        if typ in self.Normal:
+            # Error Code Chinchilla
+            embed = discord.Embed(
+                title=f"{Framework.YAML.GET('Embed', 'Help')}",
+                colour=Framework.Colour.Error,
+                description=f"Error Code: `Chinchilla`.\nException:\n`{error}`",
+                timestamp=datetime.utcnow()
+            )
+            embed.set_thumbnail(url=Framework.YAML.GET("Pictures", "Animated", "Error"))
+
+            await Framework.Messaging.Universal_send(ctx, embed, 15)
+            return
+
+
+        if isinstance(typ, commands.BadArgument or commands.BadBoolArgument or commands.TooManyArguments or commands.MissingRequiredArgument):
             # Error Code Rabbit
             embed = discord.Embed(
                 title=f"{Framework.YAML.GET('Embed', 'Help')}",
@@ -37,8 +55,9 @@ class Error(commands.Cog):
             embed.set_thumbnail(url=Framework.YAML.GET("Pictures", "Animated", "Error"))
 
             await Framework.Messaging.Universal_send(ctx, embed, 15)
+            return
 
-        elif isinstance(error, commands.BotMissingAnyRole or commands.BotMissingPermissions or commands.MissingPermissions or commands.MissingAnyRole):
+        if isinstance(typ, commands.BotMissingAnyRole or commands.BotMissingPermissions or commands.MissingPermissions or commands.MissingAnyRole):
             # Error Code Baboon
             embed = discord.Embed(
                 title=f"{Framework.YAML.GET('Embed', 'Help')}",
@@ -49,8 +68,9 @@ class Error(commands.Cog):
             embed.set_thumbnail(url=Framework.YAML.GET("Pictures", "Animated", "Error"))
 
             await Framework.Messaging.Universal_send(ctx, embed, 15)
+            return
 
-        elif isinstance(error, commands.ChannelNotFound or commands.ChannelNotReadable or commands.GuildNotFound):
+        elif isinstance(typ, commands.ChannelNotFound or commands.ChannelNotReadable or commands.GuildNotFound or discord.NotFound or discord.GatewayNotFound):
             # Error Code Elephant
             embed = discord.Embed(
                 title=f"{Framework.YAML.GET('Embed', 'Help')}",
@@ -61,8 +81,9 @@ class Error(commands.Cog):
             embed.set_thumbnail(url=Framework.YAML.GET("Pictures", "Animated", "Error"))
 
             await Framework.Messaging.Universal_send(ctx, embed, 15)
+            return
 
-        elif isinstance(error, commands.MissingAnyRole or commands.MissingPermissions or commands.CommandOnCooldown):
+        elif isinstance(typ, commands.MissingAnyRole or commands.MissingPermissions or commands.CommandOnCooldown):
             # Error Code Orphan
             embed = discord.Embed(
                 title=f"{Framework.YAML.GET('Embed', 'Help')}",
@@ -73,34 +94,9 @@ class Error(commands.Cog):
             embed.set_thumbnail(url=Framework.YAML.GET("Pictures", "Animated", "Error"))
 
             await Framework.Messaging.Universal_send(ctx, embed, 15)
-
-        if isinstance(error.original, Framework.YAMLError):
-            # Error Code Dolphin
-            embed = discord.Embed(
-                title=f"{Framework.YAML.GET('Embed', 'Help')}",
-                colour=Framework.Colour.Error,
-                description=f"Error Code: `Dolphin`.\nException:\n`{error}`",
-                timestamp=datetime.utcnow()
-            )
-            embed.set_thumbnail(url=Framework.YAML.GET("Pictures", "Animated", "Error"))
-
-            await Framework.Messaging.Universal_send(ctx, embed, 15)
+            return
 
         else:
-
-            for e2 in self.Normal:
-                if isinstance(error.original, e2):
-                    # Error Code Whale
-                    embed = discord.Embed(
-                        title=f"{Framework.YAML.GET('Embed', 'Help')}",
-                        colour=Framework.Colour.Error,
-                        description=f"Error Code: `Whale`.\nException:\n`{error}`",
-                        timestamp=datetime.utcnow()
-                    )
-                    embed.set_thumbnail(url=Framework.YAML.GET("Pictures", "Animated", "Error"))
-
-                    await Framework.Messaging.Universal_send(ctx, embed, 15)
-                    return
 
             async with aiohttp.ClientSession() as session:
                 url = Framework.YAML.GET("Client", "WebHook", "System")
@@ -111,9 +107,7 @@ class Error(commands.Cog):
                 if '\nThe above exception was the direct cause of the following exception:\n\n' in trace:
                     trace = trace[:trace.index(
                         '\nThe above exception was the direct cause of the following exception:\n\n')]
-                    traceback_text = "\n".join(trace)
-                else:
-                    traceback_text = trace
+                traceback_text = "\n".join(trace)
 
                 try:
                     Server = ctx.guild.name

@@ -53,7 +53,10 @@ class EVENT(commands.Cog):
             m = await message.channel.send(
                 f'Hello! Since you pinged me, I assume that you forgot my Prefix, which is: `{self.client.command_prefix}`')
             await asyncio.sleep(60)
-            await m.delete()
+            try:
+                await m.delete()
+            except:
+                return
             return
 
 

@@ -73,7 +73,7 @@ class Guild(commands.Cog):
     async def clear(self, ctx, Anzahl: int = None):
         x = 0
 
-        for _ in await ctx.channel.purge(limit=int(Anzahl)):
+        for _ in await ctx.channel.purge(limit=Anzahl):
             x += 1
 
         embed = discord.Embed(
