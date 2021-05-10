@@ -111,13 +111,14 @@ class MUSIK(commands.Cog):
 
         try:
             while ctx.voice_client.is_connected():
+                await asyncio.sleep(3)
                 if len(ctx.voice_client.channel.members) == 1:
                     await ctx.voice_client.disconnect()
                     break
                 elif ctx.voice_client.is_paused():
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(3)
                 elif ctx.voice_client.is_playing():
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(3)
                 else:
                     await ctx.voice_client.disconnect()
                     break
